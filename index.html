@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Solapur Spatial Dashboard</title>
+    
+    <!-- QGIS2WEB Core CSS -->
+    <link rel="stylesheet" href="css/leaflet.css">
+    <link rel="stylesheet" href="css/qgis2web.css">
+    <link rel="stylesheet" href="css/fontawesome-all.min.css">
+    
+    <!-- Google Fonts for Modern UI -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #1e293b;
+            --bg-sidebar: #0f172a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #334155;
+            --surface: #1e293b;
+            --header-h: 60px;
+            --sidebar-w: 320px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+        }
+
+        /* HEADER */
+        .dashboard-header {
+            height: var(--header-h);
+            background-color: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 1000;
+        }
+
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .stat-badge {
+            background: var(--surface);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            font-weight: 500;
+        }
+
+        /* MAIN LAYOUT */
+        .dashboard-core {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - var(--header-h));
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-w);
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            z-index: 999;
+        }
+
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .sidebar-section h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .layer-toggle:hover { color: var(--accent); }
+
+        /* Custom Checkbox */
+        .layer-toggle input[type="checkbox"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+            background: var(--surface);
+            transition: 0.2s;
+        }
+        .layer-toggle input[type="checkbox"]:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .layer-toggle input[type="checkbox"]:checked::after {
+            content: '✔';
+            position: absolute;
+            color: white;
+            font-size: 12px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* FOOTER DESIGN (Saniya Shaikh) */
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px;
+            background: var(--bg-sidebar);
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .sidebar-footer .dev-info, 
+        .sidebar-footer .edu-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .sidebar-footer .dev-info strong {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        /* MAP AREA */
+        .map-container {
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #f0f0f0; 
+        }
+
+        /* CUSTOM POPUP STYLING */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-sidebar);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            padding: 0;
+        }
+        .leaflet-popup-tip { background: var(--bg-sidebar); }
+        .leaflet-popup-content {
+            margin: 0;
+            min-width: 250px;
+        }
+        .popup-header {
+            background: var(--surface);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+        }
+        .popup-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .popup-table th, .popup-table td {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        .popup-table th { color: var(--text-muted); width: 40%; }
+        .popup-table tr:last-child th, .popup-table tr:last-child td { border-bottom: none; }
+
+        /* MOBILE UI RESPONSIVENESS */
+        @media (max-width: 768px) {
+            .dashboard-header {
+                padding: 0 12px;
+            }
+            .header-title {
+                font-size: 1rem;
+            }
+            .header-stats { display: none; }
+            .dashboard-core { flex-direction: column; }
+            .sidebar { 
+                width: 100%; 
+                height: 40vh; 
+                flex: none;
+                border-right: none; 
+                border-bottom: 2px solid var(--accent); 
+            }
+            .map-container { 
+                height: 60vh; 
+                width: 100%; 
+                flex: none;
+            }
+            .sidebar-footer {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="header-title">
+            <i class="fas fa-map-marked-alt" style="color: var(--accent);"></i>
+            Solapur Spatial & Environmental Dashboard
+        </div>
+        <div class="header-stats">
+            <div class="stat-badge">Total Layers: 18</div>
+            <div class="stat-badge">Region: Solapur, MH</div>
+            <div class="stat-badge">Year: 2025-2026</div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="dashboard-core">
+        
+        <!-- Sidebar Layer Catalog -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Base Maps</h3>
+                <!-- FACT: Google Satellite Default OFF, ESRI Gray Default ON -->
+                <label class="layer-toggle"><input type="checkbox" value="layer_GoogleSatellite_0"> Google Satellite</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_ESRIGraylight_1" checked> ESRI Gray (Light)</label>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Administrative Boundaries</h3>
+                <!-- FACT: Solapur Villages & 8KM Buffer Default ON, Wards OFF -->
+                <label class="layer-toggle"><input type="checkbox" value="layer_solapur_wards_2026_14"> Solapur Wards (2026)</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_VILLAGEsolapur_villages_13" checked> Solapur Villages</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_SOLAPUR_BUFFER8KMsolapur_buffer_12" checked> 8KM Buffer Zone</label>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Infrastructure & Utilities</h3>
+                <!-- FACT: Road Network & Railway Network Default ON, others OFF -->
+                <label class="layer-toggle"><input type="checkbox" value="layer_road_19" checked> Road Network</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_railway_18" checked> Railway Network</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_landuse_15"> Landuse Zoning</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_water_poly_16"> Water Bodies (Polygons)</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_water_line_17"> Water Streams (Lines)</label>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Urban Heat & Topography</h3>
+                <label class="layer-toggle"><input type="checkbox" value="layer_day_uhi_2025_3"> Day UHI (2025)</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_night_uhi_2025_2"> Night UHI (2025)</label>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Environmental Indices</h3>
+                <label class="layer-toggle"><input type="checkbox" value="layer_NDVI_summer_2025_5"> NDVI Summer</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_NDVI_winter_2025_4"> NDVI Winter</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_NDBI_summer_2025_6"> NDBI Summer</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_NDBI_winter_2025_7"> NDBI Winter</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_NDWI_Summer_2025_9"> NDWI Summer</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_NDWI_Winter_2025_8"> NDWI Winter</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_SUMMERsavi_11"> SAVI Summer</label>
+                <label class="layer-toggle"><input type="checkbox" value="layer_wintersavi_10"> SAVI Winter</label>
+            </div>
+
+            <!-- Footer Name Update Section -->
+            <div class="sidebar-footer">
+                <div class="dev-info">
+                    <i class="fas fa-code" style="color: var(--accent);"></i> Designed & Developed by: <strong>Saniya Shaikh</strong>
+                </div>
+                <div class="edu-info">
+                    <i class="fas fa-graduation-cap" style="color: #8b5cf6;"></i> MSc Geoinformatics PAHSUS © 2026
+                </div>
+            </div>
+        </aside>
+
+        <!-- Map Container -->
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+    </div>
+
+    <!-- Scripts (Make sure paths match your QGIS2Web folder structure) -->
+    <script src="js/leaflet.js"></script>
+    <script src="js/leaflet.rotatedMarker.js"></script>
+    <script src="js/leaflet.pattern.js"></script>
+    <script src="js/leaflet-hash.js"></script>
+    <script src="js/Autolinker.min.js"></script>
+    <script src="js/rbush.min.js"></script>
+    <script src="js/labelgun.min.js"></script>
+    <script src="js/labels.js"></script>
+    
+    <!-- Dataset Scripts -->
+    <script src="data/SOLAPUR_BUFFER8KMsolapur_buffer_12.js"></script>
+    <script src="data/VILLAGEsolapur_villages_13.js"></script>
+    <script src="data/solapur_wards_2026_14.js"></script>
+    <script src="data/landuse_15.js"></script>
+    <script src="data/water_poly_16.js"></script>
+    <script src="data/water_line_17.js"></script>
+    <script src="data/railway_18.js"></script>
+    <script src="data/road_19.js"></script>
+
+    <script>
+        // 1. INIT MAP
+        var map = L.map('map', {
+            zoomControl: false, maxZoom: 28, minZoom: 1
+        }).fitBounds([[17.429329463413744,75.50930809207877],[17.92109026912543,76.21631455551626]]);
+        
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; Data © Solapur GIS Project');
+        
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        // 2. CUSTOM POPUP GENERATOR
+        function createCustomPopup(feature, title) {
+            let html = `<div class="popup-header">${title}</div><table class="popup-table">`;
+            for (let key in feature.properties) {
+                if (feature.properties[key] !== null && feature.properties[key] !== '') {
+                    html += `<tr><th>${key}</th><td>${autolinker.link(String(feature.properties[key]))}</td></tr>`;
+                }
+            }
+            html += `</table>`;
+            return html;
+        }
+
+        // 3. LAYER DEFINITIONS
+        var bounds_group = new L.featureGroup([]);
+        var mapLayers = {}; 
+
+        // Basemaps
+        map.createPane('pane_GoogleSatellite_0');
+        map.getPane('pane_GoogleSatellite_0').style.zIndex = 400;
+        mapLayers['layer_GoogleSatellite_0'] = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_0', opacity: 1.0, maxZoom: 28
+        });
+
+        map.createPane('pane_ESRIGraylight_1');
+        map.getPane('pane_ESRIGraylight_1').style.zIndex = 401;
+        mapLayers['layer_ESRIGraylight_1'] = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            pane: 'pane_ESRIGraylight_1', opacity: 1.0, maxZoom: 28
+        });
+
+        // Image Overlays Configuration helper
+        function addImageOverlay(id, zIndex, imgSrc, bounds) {
+            map.createPane(id);
+            map.getPane(id).style.zIndex = zIndex;
+            mapLayers[id] = new L.imageOverlay(imgSrc, bounds, {pane: id});
+            bounds_group.addLayer(mapLayers[id]);
+        }
+
+        var bounds2025 = [[17.506907246,75.736332783],[17.804429268,76.040322676]];
+        var boundsNightUHI = [[17.499181735,75.727978451],[17.804608931,76.042388801]];
+
+        addImageOverlay('layer_night_uhi_2025_2', 402, 'data/night_uhi_2025_2.png', boundsNightUHI);
+        addImageOverlay('layer_day_uhi_2025_3', 403, 'data/day_uhi_2025_3.png', bounds2025);
+        addImageOverlay('layer_NDVI_winter_2025_4', 404, 'data/NDVI_winter_2025_4.png', bounds2025);
+        addImageOverlay('layer_NDVI_summer_2025_5', 405, 'data/NDVI_summer_2025_5.png', bounds2025);
+        addImageOverlay('layer_NDBI_summer_2025_6', 406, 'data/NDBI_summer_2025_6.png', bounds2025);
+        addImageOverlay('layer_NDBI_winter_2025_7', 407, 'data/NDBI_winter_2025_7.png', bounds2025);
+        addImageOverlay('layer_NDWI_Winter_2025_8', 408, 'data/NDWI_Winter_2025_8.png', bounds2025);
+        addImageOverlay('layer_NDWI_Summer_2025_9', 409, 'data/NDWI_Summer_2025_9.png', bounds2025);
+        addImageOverlay('layer_wintersavi_10', 410, 'data/wintersavi_10.png', bounds2025);
+        addImageOverlay('layer_SUMMERsavi_11', 411, 'data/SUMMERsavi_11.png', bounds2025);
+
+        // Vector Layers helper
+        function addVectorLayer(id, zIndex, data, style, title) {
+            map.createPane(id);
+            map.getPane(id).style.zIndex = zIndex;
+            map.getPane(id).style['mix-blend-mode'] = 'normal';
+            mapLayers[id] = new L.geoJson(data, {
+                pane: id,
+                style: style,
+                onEachFeature: function(feature, layer) {
+                    layer.bindPopup(createCustomPopup(feature, title), { maxHeight: 400 });
+                }
+            });
+            bounds_group.addLayer(mapLayers[id]);
+        }
+
+        // Styles
+        const styleBuffer = { color: 'rgba(35,35,35,1.0)', weight: 2.0, fillColor: 'rgba(145,82,45,0.0)', fillOpacity: 1 };
+        const styleVillage = { color: 'rgba(35,35,35,1.0)', weight: 2.0, fillColor: 'rgba(213,180,60,0.0)', fillOpacity: 1 };
+        const styleWards = { color: 'rgba(255,255,255,0.8)', weight: 1.5, fillColor: 'rgba(0,0,0,0.0)', fillOpacity: 1 };
+        const styleLanduse = { color: 'rgba(35,35,35,1.0)', weight: 1.0, fillColor: 'rgba(253,191,111,0.5)', fillOpacity: 1 };
+        const styleWaterPoly = { color: 'rgba(35,35,35,1.0)', weight: 1.0, fillColor: 'rgba(137,237,237,0.7)', fillOpacity: 1 };
+        const styleWaterLine = { color: 'rgba(31,120,180,1.0)', weight: 2.0, fillOpacity: 0 };
+        const styleRail = { color: 'rgba(112,54,34,1.0)', weight: 2.0, fillOpacity: 0 };
+        const styleRoad = { color: 'rgba(227,26,28,1.0)', weight: 1.5, fillOpacity: 0 };
+
+        // Add Vector Layers
+        addVectorLayer('layer_SOLAPUR_BUFFER8KMsolapur_buffer_12', 412, json_SOLAPUR_BUFFER8KMsolapur_buffer_12, styleBuffer, "Buffer Zone");
+        addVectorLayer('layer_VILLAGEsolapur_villages_13', 413, json_VILLAGEsolapur_villages_13, styleVillage, "Village Data");
+        addVectorLayer('layer_solapur_wards_2026_14', 414, json_solapur_wards_2026_14, styleWards, "Ward Info (2026)");
+        addVectorLayer('layer_landuse_15', 415, json_landuse_15, styleLanduse, "Land Use");
+        addVectorLayer('layer_water_poly_16', 416, json_water_poly_16, styleWaterPoly, "Water Body");
+        addVectorLayer('layer_water_line_17', 417, json_water_line_17, styleWaterLine, "Water Stream");
+        addVectorLayer('layer_railway_18', 418, json_railway_18, styleRail, "Railway");
+        addVectorLayer('layer_road_19', 419, json_road_19, styleRoad, "Road Segment");
+
+        // 4. BIND UI SIDEBAR TOGGLES TO MAP LAYERS
+        document.querySelectorAll('.layer-toggle input').forEach(checkbox => {
+            // Apply initial state based on checked attributes in HTML (Factually matching your image requirement)
+            let layerId = checkbox.value;
+            if (checkbox.checked && mapLayers[layerId]) {
+                map.addLayer(mapLayers[layerId]);
+            }
+
+            // Listen for changes
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    map.addLayer(mapLayers[layerId]);
+                } else {
+                    map.removeLayer(mapLayers[layerId]);
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
